@@ -10,7 +10,7 @@ from messages import Message
 
 
 class BaseActor(ABC):
-	"""An actor, as defined in the actor-based model of computing.
+	"""An actor as defined in the actor-based model of computing.
 
 	Attributes:
 		name: A hashable value that identifies the actor.
@@ -27,7 +27,7 @@ class BaseActor(ABC):
 		self.outbox: MutableMapping[Hashable, Queue] = {}
 
 	def run(self) -> NoReturn:
-		"""Main loop."""
+		"""Initiates the actor."""
 		while not self.should_stop():
 			msg = self.receive()
 			self.on_next(msg)
@@ -38,20 +38,20 @@ class BaseActor(ABC):
 		pass
 
 	def send(self, *msgs: Message) -> NoReturn:
-		"""Send messages to other actors."""
+		"""Sends messages to other actors."""
 		for m in msgs:
 			self.outbox[m.receiver].put(m, block=True)
 
 	def receive(self) -> Message:
-		"""Receive a message from another actor."""
+		"""Receives a message from another actor."""
 		return self.inbox.get(block=True)
 
 	def connect(self, *actors: 'BaseActor') -> NoReturn:
-		"""Enable this actor to send messages to other actors."""
+		"""Enables this actor to send messages to other actors."""
 		self.outbox.update((a.name, a.inbox) for a in actors)
 
 	def disconnect(self, *actors: 'BaseActor') -> NoReturn:
-		"""Disable this actor from sending messages to other actors."""
+		"""Disables this actor from sending messages to other actors."""
 		for a in actors:
 			self.outbox.pop(a.name, None)
 
@@ -60,12 +60,15 @@ class BaseActor(ABC):
 		"""Processes a message."""
 		pass
 
+	def __repr__(self):
+		return f'{self.__class__.__name__}(name={self.name})'
+
 
 class ActorSystem(BaseActor):
-	"""The root-level actor that defines manages a collection of actors.
+	"""The root-level actor that manages a collection of actors.
 
 	Attributes:
-		actors: A sequence of actors that are managed by the system.
+		actors: A sequence of actors that the system manages.
 	"""
 
 	__slots__ = ('actors', '_actors')
