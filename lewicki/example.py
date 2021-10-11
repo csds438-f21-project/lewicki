@@ -36,9 +36,7 @@ class SimpleActor(BaseActor):
 
 
 if __name__ == '__main__':
-	a1 = SimpleActor()
-	a2 = SimpleActor()
-	a3 = SimpleActor()
+	actors = [SimpleActor() for _ in range(3)]
 	system = SimpleActorSystem()
-	system.connect(a1, a2, a3)
+	system.connect(*actors)
 	system.run()
