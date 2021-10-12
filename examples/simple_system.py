@@ -1,13 +1,17 @@
+
 from typing import NoReturn
 
-from actors import ActorSystem, BaseActor
-from messages import Message
+import sys
+sys.path.append('../lewicki')
+
+from lewicki.actors import ActorSystem, BaseActor
+from lewicki.messages import Message
 
 
 class SimpleActorSystem(ActorSystem):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name: str):
+        super().__init__(name=name)
 
     def run(self) -> NoReturn:
         # Populate the queues with initial messages
@@ -20,14 +24,14 @@ class SimpleActorSystem(ActorSystem):
 class SimpleActor(BaseActor):
     __slots__ = ('count',)
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name: str):
+        super().__init__(name=name)
         self.count = 0
 
     def on_next(self, msg: Message) -> NoReturn:
         print(msg)
         for name, actor in self.outbox.items():
-            msg = Message(msg.data, sender=self.name, receiver=name)
+            msg = Message(msg.data, sender=self.name, receiver=name, previous_id=msg.id)
             self.send(msg)
         self.count += 1
 
@@ -36,7 +40,7 @@ class SimpleActor(BaseActor):
 
 
 if __name__ == '__main__':
-    actors = [SimpleActor() for _ in range(3)]
-    system = SimpleActorSystem()
+    actors = [SimpleActor(name=f'a{a}') for a in range(4)]
+    system = SimpleActorSystem(name='sys')
     system.connect(*actors)
     system.run()
