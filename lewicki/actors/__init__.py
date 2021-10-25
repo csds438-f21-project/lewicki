@@ -1,4 +1,3 @@
-
 import itertools
 import uuid
 from abc import ABC, abstractmethod
@@ -76,9 +75,12 @@ class BaseActor(ABC):
         # Send a message with returned values
         receiver = msg.sender
         if receiver and data.get('return', True):
-            return_msg = Message(return_data, sender=self.name,
-                                 receiver=receiver, kind=MessageKind.RETURN,
-                                 previous_id=msg.id)
+            return_msg = Message(
+                return_data,
+                sender=self.name,
+                receiver=receiver,
+                kind=MessageKind.RETURN,
+                prev_id=msg.id)
             self.send(return_msg)
 
     def handle_return(self, msg: Message) -> NoReturn:

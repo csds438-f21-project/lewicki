@@ -1,23 +1,23 @@
-
 from multiprocessing import Process
-from typing import Any, Callable, Sequence, NoReturn
+from typing import Any, Callable, NoReturn, Sequence
 
 from lewicki.actors import ActorSystem, BaseActor
 from lewicki.messages import Message, MessageKind
 
 
 class ActorPool:
-    """Similar to multiprocessing.Pool. Manages actors behind simple interface"""
+    """Manages a fixed set of actors behind simple  interface"""
 
     def __init__(self, processes: int):
         self.processes = processes
 
     def map(self, func: Callable, iterable: Sequence[Any]):
         num_actors = min(len(iterable), self.processes)
-        actors = [MapActor() for _ in range(num_actors)]
+        actors = (MapActor() for _ in range(num_actors))
         system = MapActorSystem(func, iterable)
         system.connect(*actors)
         return system.run()
+
 
 class MapActor(BaseActor):
     """An actor specially designed to work for ActorPool.map"""
@@ -32,6 +32,7 @@ class MapActor(BaseActor):
     def on_next(self, msg: Message) -> NoReturn:
         # Function calls are handled by run
         pass
+
 
 class MapActorSystem(ActorSystem):
     """An ActorSystem specially designed to work for ActorPool.map"""
@@ -59,25 +60,27 @@ class MapActorSystem(ActorSystem):
         # Prepare each actor
         for actor in self.outbox:
             # Make function available to actor
-            msg1 = Message({'name': '_func', 'value': self.func},
-                           receiver=actor, kind=MessageKind.SET)
+            msg1 = Message(
+                {'name': '_func', 'value': self.func},
+                receiver=actor,
+                kind=MessageKind.SET)
             # Send first value to each actor
             idx, value = next(self.iterable)
-            msg2 = Message({'name': '_func', 'args': [value]}, sender=self.name,
-                           receiver=actor, kind=MessageKind.CALL)
+            msg2 = Message(
+                {'name': '_func', 'args': [value]},
+                sender=self.name,
+                receiver=actor,
+                kind=MessageKind.CALL)
             self.send(msg1, msg2)
-
             # Save state
             self.result_map[msg2.id] = idx
-
         # Start actors
         super().run()
-
         return self.result
 
     def handle_return(self, msg: Message) -> NoReturn:
         # Place value in result and update state
-        id = msg.previous_id
+        id = msg.prev_id
         value_idx = self.result_map[id]
         del self.result_map[id]
         self.result[value_idx] = msg.data
@@ -86,13 +89,18 @@ class MapActorSystem(ActorSystem):
         try:
             # Assign more work if available
             idx, value = next(self.iterable)
-            msg = Message({'name': '_func', 'args': [value]}, sender=self.name,
-                          receiver=msg.sender, kind=MessageKind.CALL)
+            msg = Message(
+                {'name': '_func', 'args': [value]},
+                sender=self.name,
+                receiver=msg.sender,
+                kind=MessageKind.CALL)
             self.result_map[msg.id] = idx
         except StopIteration:
             # Tell actor to stop
-            msg = Message({'name': '_stop', 'value': True}, receiver=msg.sender,
-                          kind=MessageKind.SET)
+            msg = Message(
+                {'name': '_stop', 'value': True},
+                receiver=msg.sender,
+                kind=MessageKind.SET)
         self.send(msg)
 
     def should_stop(self) -> bool:

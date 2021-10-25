@@ -1,7 +1,6 @@
-
+import sys
 from typing import NoReturn
 
-import sys
 sys.path.append('../lewicki')
 
 from lewicki.actors import ActorSystem, BaseActor
@@ -31,7 +30,8 @@ class SimpleActor(BaseActor):
     def on_next(self, msg: Message) -> NoReturn:
         print(msg)
         for name, actor in self.outbox.items():
-            msg = Message(msg.data, sender=self.name, receiver=name, previous_id=msg.id)
+            msg = Message(msg.data, sender=self.name, receiver=name,
+                          prev_id=msg.id)
             self.send(msg)
         self.count += 1
 
