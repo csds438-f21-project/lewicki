@@ -32,12 +32,12 @@ class BaseActor(ABC):
     @abstractmethod
     def on_next(self, msg: Message) -> NoReturn:
         """Processes a message."""
-        raise NotImplementedError
+        pass
 
     @abstractmethod
     def should_stop(self) -> bool:
         """Returns True if the actor should terminate."""
-        raise NotImplementedError
+        pass
 
     def run(self) -> NoReturn:
         """Initiates the actor."""
@@ -55,12 +55,11 @@ class BaseActor(ABC):
                 self.handle_ack(msg)
             elif msg.kind == MessageKind.SET:
                 self.handle_set(msg)
-            else:
-                pass
 
     def handle_call(self, msg: Message) -> NoReturn:
         """Handle CALL Message."""
         data = msg.data
+        # TODO Incompatible with __slots__
         method = getattr(self, data['name'])
         args = data.get('args', self._EMPTY_ARGS)
         kwargs = data.get('kwargs', self._EMPTY_KWARGS)
@@ -75,14 +74,17 @@ class BaseActor(ABC):
                 prev_id=msg.id)
             self.send(return_msg)
 
+    # TODO Should this be abstract?
     def handle_return(self, msg: Message) -> NoReturn:
         """Handle RETURN Message."""
         pass
 
+    # TODO Should this be abstract?
     def handle_ack(self, msg: Message) -> NoReturn:
         """Handle ACK Message."""
         pass
 
+    # TODO Incompatible with __slots__
     def handle_set(self, msg: Message) -> NoReturn:
         """Handle SET Message."""
         data = msg.data
