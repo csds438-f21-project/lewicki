@@ -136,7 +136,7 @@ class ActorSystem(BaseActor):
         self.actors: MutableSequence[BaseActor] = []
         self._actors: MutableMapping[Hashable, Process] = {}
 
-    def connect(self, *actors: 'BaseActor') -> NoReturn:
+    def connect(self, *actors: 'BaseActor', complete: bool = True) -> NoReturn:
         """Fully connects all actors to each other and the system."""
         super().connect(*actors)
         self.actors.extend(actors)
@@ -144,6 +144,11 @@ class ActorSystem(BaseActor):
 
         for a in actors:
             a.connect(self)
+        if complete:
+            self._make_complete(*actors)
+
+    @staticmethod
+    def _make_complete(*actors: 'BaseActor') -> NoReturn:
         for a1, a2 in itertools.combinations(actors, r=2):
             a1.connect(a2)
             a2.connect(a1)

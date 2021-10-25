@@ -1,4 +1,3 @@
-from multiprocessing import Process
 from typing import Any, Callable, NoReturn, Sequence
 
 from lewicki.actors import ActorSystem, BaseActor
@@ -49,12 +48,7 @@ class MapActorSystem(ActorSystem):
         self.result = [None] * self.remaining_items
 
     def connect(self, *actors: 'BaseActor') -> NoReturn:
-        super().connect(*actors)
-        self.actors.extend(actors)
-        self._actors.update((a.name, Process(target=a.run)) for a in actors)
-
-        for a in actors:
-            a.connect(self)
+        super().connect(*actors, complete=False)
 
     def run(self) -> Any:
         # Prepare each actor
