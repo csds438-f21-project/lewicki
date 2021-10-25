@@ -18,6 +18,9 @@ class BaseActor(ABC):
         outbox: A mapping from actor names to their inboxes.
     """
 
+    _EMPTY_ARGS = ()
+    _EMPTY_KWARGS = {}
+
     __slots__ = ('name', 'inbox', 'outbox')
 
     def __init__(self, name: Optional[Hashable] = None):
@@ -59,22 +62,11 @@ class BaseActor(ABC):
         """Handle CALL Message."""
         data = msg.data
         method = getattr(self, data['name'])
-        args, kwargs = data.get('args'), data.get('kwargs')
-
-        # TODO is there a way to make this better?
-        # Call method with args and kwargs, if any
-        if args is not None and kwargs is not None:
-            return_data = method(*args, **kwargs)
-        elif args is not None:
-            return_data = method(*args)
-        elif kwargs is not None:
-            return_data = method(**kwargs)
-        else:
-            return_data = method()
-
+        args = data.get('args', self._EMPTY_ARGS)
+        kwargs = data.get('kwargs', self._EMPTY_KWARGS)
+        return_data = method(*args, **kwargs)
         # Send a message with returned values
-        receiver = msg.sender
-        if receiver and data.get('return', True):
+        if (receiver := msg.sender) and data.get('return', True):
             return_msg = Message(
                 return_data,
                 sender=self.name,
