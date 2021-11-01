@@ -1,5 +1,6 @@
 
 import sys
+
 sys.path.append('../lewicki')
 
 from lewicki import ActorPool

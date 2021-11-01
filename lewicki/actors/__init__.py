@@ -21,13 +21,14 @@ class BaseActor(ABC):
     _EMPTY_ARGS = ()
     _EMPTY_KWARGS = {}
 
-    __slots__ = ('name', 'inbox', 'outbox')
+    __slots__ = ('name', 'inbox', 'outbox', 'attrs')
 
     def __init__(self, name: Optional[Hashable] = None):
         super().__init__()
         self.name = name or str(uuid.uuid4().time_low)
         self.inbox: Queue = Queue()
         self.outbox: MutableMapping[Hashable, Queue] = {}
+        self.attrs = {}
 
     @abstractmethod
     def on_next(self, msg: Message) -> NoReturn:
@@ -58,18 +59,19 @@ class BaseActor(ABC):
 
     def handle_call(self, msg: Message) -> NoReturn:
         """Handle CALL Message."""
+        # Prepare method call and get return value
         data = msg.data
-        # TODO Incompatible with __slots__
-        method = getattr(self, data['name'])
+        method = self.attrs[data['name']]
         args = data.get('args', self._EMPTY_ARGS)
         kwargs = data.get('kwargs', self._EMPTY_KWARGS)
         return_data = method(*args, **kwargs)
-        # Send a message with returned values
-        if (receiver := msg.sender) and data.get('return', True):
+
+        # Send a message with returned value if requested
+        if msg.sender and data.get('return', True):
             return_msg = Message(
                 return_data,
                 sender=self.name,
-                receiver=receiver,
+                receiver=msg.sender,
                 kind=MessageKind.RETURN,
                 prev_id=msg.id)
             self.send(return_msg)
@@ -84,11 +86,10 @@ class BaseActor(ABC):
         """Handle ACK Message."""
         pass
 
-    # TODO Incompatible with __slots__
     def handle_set(self, msg: Message) -> NoReturn:
         """Handle SET Message."""
         data = msg.data
-        setattr(self, data['name'], data['value'])
+        self.attrs[data['name']] = data['value']
 
     def should_ignore(self, msg: Message) -> bool:
         """Returns True if the actor should ignore the received message."""

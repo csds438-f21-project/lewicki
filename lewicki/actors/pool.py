@@ -7,6 +7,8 @@ from lewicki.messages import Message, MessageKind
 class ActorPool:
     """Manages a fixed set of actors behind simple  interface"""
 
+    __slots__ = ('processes')
+
     def __init__(self, processes: int):
         self.processes = processes
 
@@ -23,10 +25,10 @@ class MapActor(BaseActor):
 
     def __init__(self):
         super().__init__()
-        self._stop = False
+        self.attrs['_stop'] = False
 
     def should_stop(self) -> bool:
-        return self._stop
+        return self.attrs['_stop']
 
     def on_next(self, msg: Message) -> NoReturn:
         # Function calls are handled by run
@@ -58,6 +60,7 @@ class MapActorSystem(ActorSystem):
                 {'name': '_func', 'value': self.func},
                 receiver=actor,
                 kind=MessageKind.SET)
+
             # Send first value to each actor
             idx, value = next(self.iterable)
             msg2 = Message(
@@ -66,10 +69,13 @@ class MapActorSystem(ActorSystem):
                 receiver=actor,
                 kind=MessageKind.CALL)
             self.send(msg1, msg2)
+
             # Save state
             self.result_map[msg2.id] = idx
+
         # Start actors
         super().run()
+
         return self.result
 
     def handle_return(self, msg: Message) -> NoReturn:
