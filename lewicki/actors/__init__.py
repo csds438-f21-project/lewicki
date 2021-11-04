@@ -3,7 +3,7 @@ import uuid
 from abc import ABC, abstractmethod
 from multiprocessing import Process, Queue
 from typing import (
-    Hashable, MutableMapping, MutableSequence, NoReturn, Optional
+    Any, Hashable, MutableMapping, MutableSequence, NoReturn, Optional
 )
 
 from lewicki.messages import Message, MessageKind
@@ -17,18 +17,67 @@ class BaseActor(ABC):
         inbox: A buffer that stores messages received from other actors.
         outbox: A mapping from actor names to their inboxes.
     """
-
-    _EMPTY_ARGS = ()
-    _EMPTY_KWARGS = {}
-
-    __slots__ = ('name', 'inbox', 'outbox', 'attrs')
+    __slots__ = ('name', 'inbox', 'outbox')
 
     def __init__(self, name: Optional[Hashable] = None):
         super().__init__()
         self.name = name or str(uuid.uuid4().time_low)
         self.inbox: Queue = Queue()
         self.outbox: MutableMapping[Hashable, Queue] = {}
-        self.attrs = {}
+
+    @abstractmethod
+    def on_next(self, msg: Any) -> NoReturn:
+        """Processes a message."""
+        pass
+
+    @abstractmethod
+    def should_stop(self) -> bool:
+        """Returns True if the actor should terminate."""
+        pass
+
+    def run(self) -> Any:
+        """Initiates the actor."""
+        while not self.should_stop():
+            msg = self.receive()
+            self.on_next(msg)
+
+    def send(self, *msgs: Any) -> NoReturn:
+        """Sends messages to other actors."""
+        for m in msgs:
+            self.outbox[m.receiver].put(m, block=True)
+
+    def receive(self) -> Any:
+        """Receives a message from another actor."""
+        return self.inbox.get(block=True)
+
+    def connect(self, *actors: 'BaseActor') -> NoReturn:
+        """Enables this actor to send messages to other actors."""
+        self.outbox.update((a.name, a.inbox) for a in actors)
+
+    def disconnect(self, *actors: 'BaseActor') -> NoReturn:
+        """Disables this actor from sending messages to other actors."""
+        for a in actors:
+            self.outbox.pop(a.name, None)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(name={self.name})'
+
+
+class MessageActor(BaseActor):
+    """An base actor with default logic for handling messages.
+
+    Attributes:
+        attrs: A mapping to maintain any mutable state.
+    """
+
+    _EMPTY_ARGS = ()
+    _EMPTY_KWARGS = {}
+
+    __slots__ = ('attrs',)
+
+    def __init__(self, name: Optional[Hashable] = None):
+        super().__init__(name)
+        self.attrs: MutableMapping[Hashable, Any] = {}
 
     @abstractmethod
     def on_next(self, msg: Message) -> NoReturn:
@@ -76,12 +125,10 @@ class BaseActor(ABC):
                 prev_id=msg.id)
             self.send(return_msg)
 
-    # TODO Should this be abstract?
     def handle_return(self, msg: Message) -> NoReturn:
         """Handle RETURN Message."""
         pass
 
-    # TODO Should this be abstract?
     def handle_ack(self, msg: Message) -> NoReturn:
         """Handle ACK Message."""
         pass
@@ -95,27 +142,6 @@ class BaseActor(ABC):
         """Returns True if the actor should ignore the received message."""
         return False
 
-    def send(self, *msgs: Message) -> NoReturn:
-        """Sends messages to other actors."""
-        for m in msgs:
-            self.outbox[m.receiver].put(m, block=True)
-
-    def receive(self) -> Message:
-        """Receives a message from another actor."""
-        return self.inbox.get(block=True)
-
-    def connect(self, *actors: 'BaseActor') -> NoReturn:
-        """Enables this actor to send messages to other actors."""
-        self.outbox.update((a.name, a.inbox) for a in actors)
-
-    def disconnect(self, *actors: 'BaseActor') -> NoReturn:
-        """Disables this actor from sending messages to other actors."""
-        for a in actors:
-            self.outbox.pop(a.name, None)
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}(name={self.name})'
-
 
 class ActorSystem(BaseActor):
     """The root-level actor that manages a collection of actors.
@@ -123,7 +149,6 @@ class ActorSystem(BaseActor):
     Attributes:
         actors: A sequence of actors that the system manages.
     """
-
     __slots__ = ('actors', '_actors')
 
     def __init__(self, name: Optional[Hashable] = None):
@@ -163,3 +188,15 @@ class ActorSystem(BaseActor):
     def should_stop(self) -> bool:
         # No-op
         return True
+
+
+class MessageActorSystem(ActorSystem, MessageActor):
+    """An actor system that runs as a MessageActor."""
+
+    __slots__ = ()
+
+    def __init__(self, name: Optional[Hashable] = None):
+        super().__init__(name)
+
+    def run(self) -> NoReturn:
+        MessageActor.run(self)
