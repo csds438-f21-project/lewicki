@@ -3,7 +3,7 @@ import uuid
 from abc import ABC, abstractmethod
 from multiprocessing import Process, Queue
 from typing import (
-    Any, Hashable, MutableMapping, MutableSequence, NoReturn, Optional, Sequence
+    Any, Hashable, MutableMapping, MutableSequence, NoReturn, Optional
 )
 
 from lewicki.messages import Message, MessageKind
@@ -198,5 +198,5 @@ class MessageActorSystem(ActorSystem, MessageActor):
     def __init__(self, name: Optional[Hashable] = None):
         super().__init__(name)
 
-    def run(self) -> Sequence[Any]:
-        return MessageActor.run(self)
+    def run(self) -> NoReturn:
+        MessageActor.run(self)
