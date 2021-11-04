@@ -1,13 +1,13 @@
 from typing import Any, Callable, NoReturn, Sequence
 
-from lewicki.actors import ActorSystem, BaseActor
+from lewicki.actors import MessageActor, MessageActorSystem
 from lewicki.messages import Message, MessageKind
 
 
 class ActorPool:
     """Manages a fixed set of actors behind simple  interface"""
 
-    __slots__ = ('processes')
+    __slots__ = ('processes',)
 
     def __init__(self, processes: int):
         self.processes = processes
@@ -20,7 +20,7 @@ class ActorPool:
         return system.run()
 
 
-class MapActor(BaseActor):
+class MapActor(MessageActor):
     """An actor specially designed to work for ActorPool.map"""
 
     def __init__(self):
@@ -35,8 +35,8 @@ class MapActor(BaseActor):
         pass
 
 
-class MapActorSystem(ActorSystem):
-    """An ActorSystem specially designed to work for ActorPool.map"""
+class MapActorSystem(MessageActorSystem):
+    """An MessageActorSystem specially designed to work for ActorPool.map"""
 
     __slots__ = ('func', 'iterable', 'remaining_items', 'result_map', 'result')
 
@@ -49,7 +49,7 @@ class MapActorSystem(ActorSystem):
         self.result_map = {}
         self.result = [None] * self.remaining_items
 
-    def connect(self, *actors: 'BaseActor') -> NoReturn:
+    def connect(self, *actors: 'MessageActor') -> NoReturn:
         super().connect(*actors, complete=False)
 
     def run(self) -> Any:

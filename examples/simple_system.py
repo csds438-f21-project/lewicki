@@ -3,11 +3,11 @@ from typing import NoReturn
 
 sys.path.append('../lewicki')
 
-from lewicki.actors import ActorSystem, BaseActor
+from lewicki.actors import MessageActorSystem, MessageActor
 from lewicki.messages import Message
 
 
-class SimpleActorSystem(ActorSystem):
+class SimpleActorSystem(MessageActorSystem):
 
     def __init__(self, name: str):
         super().__init__(name=name)
@@ -20,7 +20,7 @@ class SimpleActorSystem(ActorSystem):
         super().run()
 
 
-class SimpleActor(BaseActor):
+class SimpleActor(MessageActor):
     __slots__ = ('count',)
 
     def __init__(self, name: str):
