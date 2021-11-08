@@ -6,7 +6,7 @@ from typing import (
     Any, Hashable, MutableMapping, MutableSequence, NoReturn, Optional
 )
 
-from lewicki.messages import Message, MessageKind
+from ..messages import Message, MessageKind
 
 
 class BaseActor(ABC):
@@ -190,13 +190,14 @@ class ActorSystem(BaseActor):
         return True
 
 
-class MessageActorSystem(ActorSystem, MessageActor):
+class MessageActorSystem(ActorSystem):
     """An actor system that runs as a MessageActor."""
 
     __slots__ = ()
 
     def __init__(self, name: Optional[Hashable] = None):
         super().__init__(name)
+        self._actor = MessageActor(name)
 
     def run(self) -> NoReturn:
-        MessageActor.run(self)
+        self._actor.run()
