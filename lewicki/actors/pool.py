@@ -1,7 +1,7 @@
 from typing import Any, Callable, NoReturn, Sequence
 
-from . import MessageActor, MessageActorSystem
-from ..messages import Message, MessageKind
+from lewicki.actors import MessageActor, MessageActorSystem
+from lewicki.messages import Message, MessageKind
 
 
 class ActorPool:

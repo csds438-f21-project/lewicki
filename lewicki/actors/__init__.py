@@ -6,7 +6,7 @@ from typing import (
     Any, Hashable, MutableMapping, MutableSequence, NoReturn, Optional
 )
 
-from ..messages import Message, MessageKind
+from lewicki.messages import Message, MessageKind
 
 
 class BaseActor(ABC):
@@ -21,7 +21,7 @@ class BaseActor(ABC):
 
     def __init__(self, name: Optional[Hashable] = None):
         super().__init__()
-        self.name = name or str(uuid.uuid4().time_low)
+        self.name = name if name is not None else str(uuid.uuid4().time_low)
         self.inbox: Queue = Queue()
         self.outbox: MutableMapping[Hashable, Queue] = {}
 
