@@ -13,17 +13,25 @@ class BaseActor(ABC):
     """An actor as defined in the actor-based model of computing.
 
     Attributes:
-        name: A hashable value that identifies the actor.
+        name: A hashable otherwise that identifies the actor.
         inbox: A buffer that stores messages received from other actors.
         outbox: A mapping from actor names to their inboxes.
     """
     __slots__ = ('name', 'inbox', 'outbox')
 
-    def __init__(self, name: Optional[Hashable] = None):
+    def __init__(
+            self,
+            name: Optional[Hashable] = None,
+            inbox: Any = None,
+            outbox: MutableMapping[Hashable, Any] = None):
         super().__init__()
-        self.name = name if name is not None else str(uuid.uuid4().time_low)
-        self.inbox: Queue = Queue()
-        self.outbox: MutableMapping[Hashable, Queue] = {}
+        self.name = self._else(name, str(uuid.uuid4().time_low))
+        self.inbox = self._else(inbox, Queue())
+        self.outbox = self._else(outbox, {})
+
+    @staticmethod
+    def _else(optional, otherwise):
+        return optional if optional is not None else otherwise
 
     @abstractmethod
     def on_next(self, msg: Any) -> NoReturn:
@@ -37,14 +45,14 @@ class BaseActor(ABC):
 
     def run(self) -> Any:
         """Initiates the actor."""
-        while not self.should_stop():
-            msg = self.receive()
-            self.on_next(msg)
+        stop, receive, on_next = self.should_stop, self.receive, self.on_next
+        while not stop():
+            on_next(receive())
 
+    @abstractmethod
     def send(self, *msgs: Any) -> NoReturn:
         """Sends messages to other actors."""
-        for m in msgs:
-            self.outbox[m.receiver].put(m, block=True)
+        pass
 
     def receive(self) -> Any:
         """Receives a message from another actor."""
@@ -56,8 +64,9 @@ class BaseActor(ABC):
 
     def disconnect(self, *actors: 'BaseActor') -> NoReturn:
         """Disables this actor from sending messages to other actors."""
+        pop = self.outbox.pop
         for a in actors:
-            self.outbox.pop(a.name, None)
+            pop(a.name, None)
 
     def __repr__(self):
         return f'{self.__class__.__name__}(name={self.name})'
@@ -108,14 +117,14 @@ class MessageActor(BaseActor):
 
     def handle_call(self, msg: Message) -> NoReturn:
         """Handle CALL Message."""
-        # Prepare method call and get return value
+        # Prepare method call and get return otherwise
         data = msg.data
         method = self.attrs[data['name']]
         args = data.get('args', self._EMPTY_ARGS)
         kwargs = data.get('kwargs', self._EMPTY_KWARGS)
         return_data = method(*args, **kwargs)
 
-        # Send a message with returned value if requested
+        # Send a message with returned otherwise if requested
         if msg.sender and data.get('return', True):
             return_msg = Message(
                 return_data,
@@ -124,6 +133,11 @@ class MessageActor(BaseActor):
                 kind=MessageKind.RETURN,
                 prev_id=msg.id)
             self.send(return_msg)
+
+    def send(self, *msgs: Any) -> NoReturn:
+        """Sends messages to other actors."""
+        for m in msgs:
+            self.outbox[m.receiver].put(m, block=True)
 
     def handle_return(self, msg: Message) -> NoReturn:
         """Handle RETURN Message."""
@@ -136,14 +150,14 @@ class MessageActor(BaseActor):
     def handle_set(self, msg: Message) -> NoReturn:
         """Handle SET Message."""
         data = msg.data
-        self.attrs[data['name']] = data['value']
+        self.attrs[data['name']] = data['otherwise']
 
     def should_ignore(self, msg: Message) -> bool:
         """Returns True if the actor should ignore the received message."""
         return False
 
 
-class ActorSystem(BaseActor):
+class BaseActorSystem(BaseActor, ABC):
     """The root-level actor that manages a collection of actors.
 
     Attributes:
@@ -190,7 +204,7 @@ class ActorSystem(BaseActor):
         return True
 
 
-class MessageActorSystem(ActorSystem):
+class MessageActorSystem(BaseActorSystem):
     """An actor system that runs as a MessageActor."""
 
     __slots__ = ()
@@ -201,3 +215,6 @@ class MessageActorSystem(ActorSystem):
 
     def run(self) -> NoReturn:
         self._actor.run()
+
+    def send(self, *msgs: Any) -> NoReturn:
+        self._actor.send(*msgs)
