@@ -22,12 +22,11 @@ class BaseActor(ABC):
     def __init__(
             self,
             name: Optional[Hashable] = None,
-            inbox: Optional[Any] = None,
-            outbox: Optional[MutableMapping[Hashable, Any]] = None):
+            inbox: Optional[Any] = None):
         super().__init__()
         self.name = self._else(name, str(uuid.uuid4().time_low))
         self.inbox = self._else(inbox, Queue())
-        self.outbox = self._else(outbox, {})
+        self.outbox = {}
 
     @staticmethod
     def _else(optional, otherwise):
@@ -165,8 +164,11 @@ class BaseActorSystem(BaseActor, ABC):
     """
     __slots__ = ('actors', '_actors')
 
-    def __init__(self, name: Optional[Hashable] = None):
-        super().__init__(name=name)
+    def __init__(
+            self,
+            name: Optional[Hashable] = None,
+            inbox: Optional[Any] = None):
+        super().__init__(name, inbox)
         self.actors: MutableSequence[BaseActor] = []
         self._actors: MutableMapping[Hashable, Process] = {}
 
@@ -195,7 +197,7 @@ class BaseActorSystem(BaseActor, ABC):
         for a in self._actors.values():
             a.join()
 
-    def on_next(self, msg: Message) -> NoReturn:
+    def on_next(self, msg: Any) -> NoReturn:
         # No-op
         pass
 
