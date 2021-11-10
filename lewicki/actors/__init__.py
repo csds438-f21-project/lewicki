@@ -22,8 +22,8 @@ class BaseActor(ABC):
     def __init__(
             self,
             name: Optional[Hashable] = None,
-            inbox: Any = None,
-            outbox: MutableMapping[Hashable, Any] = None):
+            inbox: Optional[Any] = None,
+            outbox: Optional[MutableMapping[Hashable, Any]] = None):
         super().__init__()
         self.name = self._else(name, str(uuid.uuid4().time_low))
         self.inbox = self._else(inbox, Queue())
