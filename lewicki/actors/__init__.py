@@ -6,7 +6,7 @@ from typing import (
     Any, Hashable, MutableMapping, MutableSequence, NoReturn, Optional
 )
 
-from lewicki.messages import Message, MessageKind
+from ..messages import Message, MessageKind
 
 
 class BaseActor(ABC):

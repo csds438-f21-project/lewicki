@@ -1,9 +1,6 @@
-import sys
 from typing import NoReturn
 
-sys.path.append('../lewicki')
-
-from lewicki.actors import MessageActorSystem, MessageActor
+from lewicki.actors import MessageActor, MessageActorSystem
 from lewicki.messages import Message
 
 

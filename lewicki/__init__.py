@@ -1,1 +1,1 @@
-from lewicki.actors.pool import ActorPool
+from .actors.pool import ActorPool
