@@ -87,12 +87,10 @@ class MessageActor(BaseActor):
         super().__init__(name)
         self.attrs: MutableMapping[Hashable, Any] = {}
 
-    @abstractmethod
     def on_next(self, msg: Message) -> NoReturn:
         """Processes a message."""
         pass
 
-    @abstractmethod
     def should_stop(self) -> bool:
         """Returns True if the actor should terminate."""
         pass
@@ -149,7 +147,7 @@ class MessageActor(BaseActor):
     def handle_set(self, msg: Message) -> NoReturn:
         """Handle SET Message."""
         data = msg.data
-        self.attrs[data['name']] = data['otherwise']
+        self.attrs[data['name']] = data['value']
 
     def should_ignore(self, msg: Message) -> bool:
         """Returns True if the actor should ignore the received message."""
@@ -206,17 +204,47 @@ class BaseActorSystem(BaseActor, ABC):
         return True
 
 
-class MessageActorSystem(BaseActorSystem):
+class MessageActorSystem(MessageActor, ABC):
     """An actor system that runs as a MessageActor."""
 
-    __slots__ = ()
+    __slots__ = ('actors', '_actors')
 
-    def __init__(self, name: Optional[Hashable] = None):
+    def __init__(
+            self,
+            name: Optional[Hashable] = None):
         super().__init__(name)
-        self._actor = MessageActor(name)
+        self.actors: MutableSequence[BaseActor] = []
+        self._actors: MutableMapping[Hashable, Process] = {}
+
+    def connect(self, *actors: 'MessageActor', complete: bool = True) -> NoReturn:
+        """Fully connects all actors to each other and the system."""
+        super().connect(*actors)
+        self.actors.extend(actors)
+        self._actors.update((a.name, Process(target=a.run)) for a in actors)
+
+        for a in actors:
+            a.connect(self)
+        if complete:
+            self._make_complete(*actors)
+
+    @staticmethod
+    def _make_complete(*actors: 'MessageActor') -> NoReturn:
+        for a1, a2 in itertools.combinations(actors, r=2):
+            a1.connect(a2)
+            a2.connect(a1)
 
     def run(self) -> NoReturn:
-        self._actor.run()
+        """Initiates all actor processes and waits for their termination."""
+        for a in self._actors.values():
+            a.start()
+        super().run()
+        for a in self._actors.values():
+            a.join()
 
-    def send(self, *msgs: Any) -> NoReturn:
-        self._actor.send(*msgs)
+    def on_next(self, msg: Any) -> NoReturn:
+        # No-op
+        pass
+
+    def should_stop(self) -> bool:
+        # No-op
+        return True
